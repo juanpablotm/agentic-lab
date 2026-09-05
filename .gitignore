@@ -1,0 +1,44 @@
+# ---- Secretos: NADA de esto entra al repo, nunca ----
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+credentials.json
+secrets/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.uv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# ---- Node / TypeScript ----
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+.pnpm-store/
+
+# ---- Trazas, logs y datos generados ----
+*.log
+logs/
+trazas/
+*.jsonl
+!datos/**/*.jsonl
+.cache/
+
+# ---- Sistema / editor ----
+.DS_Store
+.vscode/*
+!.vscode/settings.json
+.idea/
