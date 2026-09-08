@@ -1,0 +1,10 @@
+[project]
+name = "py"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=1.4.0",
+    "google-genai>=2.22.0",
+    "openai>=3.8.0",
+    "python-dotenv>=1.2.3",
+]
