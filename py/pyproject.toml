@@ -7,4 +7,5 @@ dependencies = [
     "google-genai>=2.22.0",
     "openai>=3.8.0",
     "python-dotenv>=1.2.3",
+    "smolagents[litellm]>=1.26.0",
 ]

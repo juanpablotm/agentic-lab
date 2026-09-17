@@ -7,6 +7,7 @@ En la semana 11 esto se convierte en el artículo técnico.
 |-----|----------|---------------|-------------|
 | D0.1 (sáb 5 sep) | Monté el entorno y publiqué `agentic-lab` en GitHub con la estructura del laboratorio. | Todo: el `PATH` de Homebrew, `gh` que nunca se instaló, y `uv` rechazado por el proxy TLS del trabajo. | Que instalar no es lo mismo que estar disponible, y que la fricción de entorno corporativo es parte del trabajo, no un obstáculo para el trabajo. |
 | D0.2 (7–8 sep) | Capa multiproveedor: una sola función y cuatro backends (Anthropic, OpenAI, Groq, Gemini) devolviendo texto, tokens, latencia y coste por llamada. | `coste()` usaba variables que no existían, así que las cuatro funciones reventaban; y `gpt-5-nano` devolvió texto vacío. | Que los tres modelos que sí respondieron sobre mi propio sector se equivocaron — y el más caro se equivocó con más seguridad. |
+| D0.3 (10–17 sep) | Leí *Building Effective Agents* y las unidades 0 y 1 de Hugging Face, escribí mi línea base, resumí los patrones con ejemplos de seguros y cerré `llamar_ollama`. | Nada de código. Se rompió mi idea de que `uv` busca el proyecto hacia abajo, y tardé en encontrar un `.env` que llevaba media hora delante de mí. | Que ya tenía el bucle del agente en la cabeza sin saber su nombre: observar el resultado, decidir si sigo, y parar por objetivo cumplido o por límite alcanzado. |
 
 ---
 
@@ -125,3 +126,64 @@ Guardo esta salida como primer caso de evaluación para D07.
 
 **Calibración.** El día se fue en el código, no en las APIs. El error de `coste()` me
 costó bastante rato justamente porque el síntoma aparecía en otro sitio.
+
+
+---
+
+## D0.3 — del 10 al 17 de septiembre
+
+**Lo que quedó hecho.** `notas/00-linea-base.md` completa: mi definición de agente antes y
+después de leer, workflow vs agente, cinco preguntas para once semanas, lo que creo que
+será lo más difícil, la autoevaluación de las 24 competencias y los siete patrones del
+artículo de Anthropic con un ejemplo de mi sector cada uno. Además cerré `llamar_ollama`,
+que quedaba pendiente de D0.2, y recalibré las fechas del plan para que arranque hoy.
+
+**El día sin código.** El único del plan. Se siente como perder el tiempo después de dos
+días peleando con entornos y SDKs, y no lo es: sin línea base, en noviembre solo podría
+decir "creo que aprendí bastante".
+
+**Lo que más me llamó la atención.** Escribí mi definición de agente antes de leer nada, y
+después de leer la volví a escribir. Comparándolas, lo que gané no fueron palabras nuevas:
+fue el paso de **observación** y las **condiciones de parada**. Antes decía que el agente
+planifica y busca herramientas hasta cumplir el objetivo. Después escribí que ejecuta,
+observa el resultado, concluye si es lo que necesitaba, decide si sigue o cambia de
+estrategia, y termina cuando la tarea está hecha *o se alcanza algún límite*.
+
+Eso es el bucle del agente, y resulta que lo tenía en la cabeza sin saber que se llamaba
+así. En D09 lo voy a escribir en 150 líneas de Python, y ese "algún límite" va a ser
+literalmente `max_steps`.
+
+**Los patrones.** El de paralelización fue el que mejor entendí — los dos sabores,
+seccionado y votación, con ejemplos distintos. En el de encadenamiento vi que el patrón
+no es gratis: cambias latencia por precisión. Me faltó el séptimo, los agentes como
+categoría aparte, y me faltó anotar el cierre del artículo: simplicidad, transparencia, y
+cuidar la interfaz agente-computadora, que es la documentación de las herramientas.
+
+También tengo una errata que vale la pena recordar: escribí "**No** sirve" donde quería
+decir "Nos sirve", y la frase entera pasó a significar lo contrario. En la semana 11 voy a
+escribir una propuesta para un director. Un "no" de más ahí cambia una recomendación.
+
+**Decisión que ya tomé y apliqué.** En `llamar_ollama`, "local" es una **categoría de
+precio**, no un modelo. El proveedor declara que es gratis; `coste()` no lo adivina por el
+nombre. Así puedo cambiar de modelo local mañana sin tocar la tabla de precios. Lo dejé
+escrito en el docstring, no solo en la cabeza.
+
+**Sobre la autoevaluación.** Saqué 19 de 72. El número global me parece bien calibrado,
+pero la escala no: entre "no sé ni qué significa la frase" y "entiendo el concepto" hay un
+abismo, y casi todo me cayó en el 1 por defecto. La voy a volver a usar en D77 con el
+mismo criterio, que es lo único que la hace comparable, pero no me voy a apoyar en ella
+más de lo que aguanta. El diario y el repo son mejor evidencia.
+
+**Cosas pequeñas que aprendí por el camino.**
+
+- Los archivos que empiezan con punto están ocultos por convención. Por eso no veía `.env`
+  en Finder, ni veo la carpeta `.git` donde vive toda la historia del repo.
+- `uv` busca el `pyproject.toml` en la carpeta actual y va **subiendo**, nunca bajando. Por
+  eso `uv add` falló desde la raíz del repo: el proyecto estaba un nivel por debajo.
+- Los corchetes en `pip install 'smolagents[litellm]'` se llaman *extras*: grupos de
+  dependencias opcionales que el paquete declara. Y las comillas son porque `zsh`
+  interpreta los corchetes como comodines.
+- `litellm` es, en grande, lo mismo que escribí a mano en D0.2: una interfaz única sobre
+  muchos proveedores. Haberlo escrito primero hace que la librería no me parezca magia.
+- `smolagents` hace que el agente escriba código Python en vez de JSON para usar sus
+  herramientas. Más natural para el modelo, y una superficie de ataque enorme: eso es D10.

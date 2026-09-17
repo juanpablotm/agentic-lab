@@ -168,8 +168,37 @@ def llamar_ollama(prompt: str) -> Respuesta:
     """Modelo local. Mismo truco que Groq: http://localhost:11434/v1
 
     Coste 0. Sirve para experimentar sin mirar la factura.
+
+    "ollama" en PRECIOS es una categoria de precio (local = gratis), no un
+    modelo. Por eso coste() se llama con "ollama" y no con `modelo`: da
+    igual que modelo local corras (llama3.2:3b hoy, otro manana), la
+    categoria de precio sigue siendo la misma.
     """
-    raise NotImplementedError("D0.2 - escribe esto")
+    modelo = os.getenv("OLLAMA_MODELO")
+
+    cliente = OpenAI(
+        api_key="ollama",
+        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+    )
+
+    r = cliente.chat.completions.create(
+        model=modelo,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=200,
+    )
+
+    entrada = r.usage.prompt_tokens
+    salida = r.usage.completion_tokens
+
+    return Respuesta(
+        proveedor="ollama",
+        modelo=modelo,
+        texto=r.choices[0].message.content,
+        tokens_entrada=entrada,
+        tokens_salida=salida,
+        latencia_s=0.0,
+        coste_usd=coste("ollama", entrada, salida),
+    )
 
 
 # --------------------------------------------------------------------------
