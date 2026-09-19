@@ -44,3 +44,50 @@ security find-certificate -a -p /Library/Keychains/System.keychain > ~/.certs/co
 **Por que anotar esto:** es friccion de entorno corporativo, no un problema mio ni de
 la herramienta. En una aseguradora esto sale una y otra vez, y saber diagnosticarlo
 en dos minutos en vez de en dos horas es parte del trabajo.
+
+
+## Resolucion definitiva del TLS corporativo (D01, 19 sep 2026)
+
+Las variables de entorno no bastan: cada libreria decide por su cuenta que almacen de
+certificados usa.
+
+| Libreria | Respeta | Resultado |
+|---|---|---|
+| `uv` | `UV_SYSTEM_CERTS=1` | funciona |
+| `requests` (y por tanto `tiktoken`) | `REQUESTS_CA_BUNDLE` | funciona |
+| `httpx` | **ninguna de las dos** — trae `certifi` fijado por dentro | fallaba |
+
+La solucion que cubre todo a la vez es `truststore`, que hace que Python use el llavero
+de macOS —donde ya esta el certificado raiz corporativo— en lugar de su propio paquete:
+
+```bash
+uv add truststore
+```
+
+```python
+import truststore
+truststore.inject_into_ssl()   # ANTES de importar httpx o cualquier SDK
+```
+
+Tiene que ir antes porque sustituye el mecanismo con el que Python construye sus contextos
+TLS. Si la libreria ya se cargo con el suyo, llegas tarde.
+
+Variables como respaldo, en `~/.zprofile`:
+
+```
+export UV_SYSTEM_CERTS=1
+export SSL_CERT_FILE="$HOME/.certs/corporativo.pem"
+export REQUESTS_CA_BUNDLE="$HOME/.certs/corporativo.pem"
+```
+
+El `.pem` se genera concatenando los dos llaveros —el del sistema, que tiene la raiz
+corporativa, y el de raices publicas— porque el proxy no intercepta todo el trafico:
+
+```bash
+mkdir -p ~/.certs
+security find-certificate -a -p /Library/Keychains/System.keychain > ~/.certs/corporativo.pem
+security find-certificate -a -p /System/Library/Keychains/SystemRootCertificates.keychain >> ~/.certs/corporativo.pem
+```
+
+Ojo: un proceso lanzado desde el boton de ejecutar de VS Code **no hereda** los `export`
+de una terminal. Por eso `truststore` es mejor que las variables: viaja dentro del codigo.

@@ -8,6 +8,7 @@ En la semana 11 esto se convierte en el artículo técnico.
 | D0.1 (sáb 5 sep) | Monté el entorno y publiqué `agentic-lab` en GitHub con la estructura del laboratorio. | Todo: el `PATH` de Homebrew, `gh` que nunca se instaló, y `uv` rechazado por el proxy TLS del trabajo. | Que instalar no es lo mismo que estar disponible, y que la fricción de entorno corporativo es parte del trabajo, no un obstáculo para el trabajo. |
 | D0.2 (7–8 sep) | Capa multiproveedor: una sola función y cuatro backends (Anthropic, OpenAI, Groq, Gemini) devolviendo texto, tokens, latencia y coste por llamada. | `coste()` usaba variables que no existían, así que las cuatro funciones reventaban; y `gpt-5-nano` devolvió texto vacío. | Que los tres modelos que sí respondieron sobre mi propio sector se equivocaron — y el más caro se equivocó con más seguridad. |
 | D0.3 (10–17 sep) | Leí *Building Effective Agents* y las unidades 0 y 1 de Hugging Face, escribí mi línea base, resumí los patrones con ejemplos de seguros y cerré `llamar_ollama`. | Nada de código. Se rompió mi idea de que `uv` busca el proyecto hacia abajo, y tardé en encontrar un `.env` que llevaba media hora delante de mí. | Que ya tenía el bucle del agente en la cabeza sin saber su nombre: observar el resultado, decidir si sigo, y parar por objetivo cumplido o por límite alcanzado. |
+| D01 (18–19 sep) | Llamé a Anthropic y OpenAI con `httpx`, sin SDK, y diseccioné el JSON de ida y el de vuelta. Medí el impuesto del idioma, provoqué cortes a propósito y estimé costes antes de pagarlos. | Filtré mi clave de Anthropic imprimiendo el cuerpo con las variables cruzadas. Y el proxy TLS otra vez, ahora contra `httpx`, que ignora `SSL_CERT_FILE`. | Que una respuesta puede llegar con código 200, JSON válido y texto dentro, y aun así ser basura. El único testigo es `stop_reason`. |
 
 ---
 
@@ -128,62 +129,107 @@ Guardo esta salida como primer caso de evaluación para D07.
 costó bastante rato justamente porque el síntoma aparecía en otro sitio.
 
 
+## D0.2 — 7 y 8 de septiembre
+
+Mi definicion de agente: Para mi un agente de IA es un sistema de inteligencia artificial que va mas allá de solo responder preguntas, es un sistema que sigue un flujo de trabajo completo, en base a un prompt se plantea un plan, razona en base a este y luego de esto busca herramientas para realizar su tarea si es necesario, todo esto con un objetivo final, hasta que el agente no cumpla su objetivo no se detiene.
+
+
+
 ---
 
 ## D0.3 — del 10 al 17 de septiembre
 
 **Lo que quedó hecho.** `notas/00-linea-base.md` completa: mi definición de agente antes y
-después de leer, workflow vs agente, cinco preguntas para once semanas, lo que creo que
-será lo más difícil, la autoevaluación de las 24 competencias y los siete patrones del
-artículo de Anthropic con un ejemplo de mi sector cada uno. Además cerré `llamar_ollama`,
-que quedaba pendiente de D0.2, y recalibré las fechas del plan para que arranque hoy.
+después de leer, workflow vs agente, cinco preguntas para once semanas, lo que creo que será
+lo más difícil, la autoevaluación de las 24 competencias (19/72) y los siete patrones del
+artículo de Anthropic con un ejemplo de mi sector cada uno. Además cerré `llamar_ollama` y
+recalibré las fechas del plan.
 
-**El día sin código.** El único del plan. Se siente como perder el tiempo después de dos
-días peleando con entornos y SDKs, y no lo es: sin línea base, en noviembre solo podría
-decir "creo que aprendí bastante".
+**Lo que más me llamó la atención.** Escribí mi definición de agente antes de leer nada y
+después la volví a escribir. Lo que gané no fueron palabras nuevas: fue el paso de
+**observación** y las **condiciones de parada**. Antes decía que el agente planifica y busca
+herramientas hasta cumplir el objetivo. Después escribí que ejecuta, observa el resultado,
+concluye si es lo que necesitaba, decide si sigue o cambia de estrategia, y termina cuando
+la tarea está hecha *o se alcanza algún límite*. Eso es el bucle del agente, y lo tenía en
+la cabeza sin saber que se llamaba así.
 
-**Lo que más me llamó la atención.** Escribí mi definición de agente antes de leer nada, y
-después de leer la volví a escribir. Comparándolas, lo que gané no fueron palabras nuevas:
-fue el paso de **observación** y las **condiciones de parada**. Antes decía que el agente
-planifica y busca herramientas hasta cumplir el objetivo. Después escribí que ejecuta,
-observa el resultado, concluye si es lo que necesitaba, decide si sigue o cambia de
-estrategia, y termina cuando la tarea está hecha *o se alcanza algún límite*.
+**Decisión que apliqué.** En `llamar_ollama`, "local" es una **categoría de precio**, no un
+modelo. El proveedor declara que es gratis; `coste()` no lo adivina por el nombre. Así puedo
+cambiar de modelo local sin tocar la tabla de precios. Lo dejé escrito en el docstring.
 
-Eso es el bucle del agente, y resulta que lo tenía en la cabeza sin saber que se llamaba
-así. En D09 lo voy a escribir en 150 líneas de Python, y ese "algún límite" va a ser
-literalmente `max_steps`.
+**Sobre la autoevaluación.** Saqué 19 de 72. El número global me parece bien calibrado, pero
+la escala no: entre "no sé ni qué significa la frase" y "entiendo el concepto" hay un abismo.
+La volveré a usar en D77 con el mismo criterio, que es lo único que la hace comparable, pero
+no me voy a apoyar en ella más de lo que aguanta.
 
-**Los patrones.** El de paralelización fue el que mejor entendí — los dos sabores,
-seccionado y votación, con ejemplos distintos. En el de encadenamiento vi que el patrón
-no es gratis: cambias latencia por precisión. Me faltó el séptimo, los agentes como
-categoría aparte, y me faltó anotar el cierre del artículo: simplicidad, transparencia, y
-cuidar la interfaz agente-computadora, que es la documentación de las herramientas.
+**Cosas pequeñas que aprendí.** Los archivos que empiezan con punto están ocultos por
+convención. `uv` busca el `pyproject.toml` hacia arriba, nunca hacia abajo. Los corchetes de
+`pip install 'smolagents[litellm]'` se llaman *extras*. Y `litellm` es, en grande, lo mismo
+que escribí a mano en D0.2 — haberlo escrito primero hace que la librería no me parezca magia.
 
-También tengo una errata que vale la pena recordar: escribí "**No** sirve" donde quería
-decir "Nos sirve", y la frase entera pasó a significar lo contrario. En la semana 11 voy a
-escribir una propuesta para un director. Un "no" de más ahí cambia una recomendación.
 
-**Decisión que ya tomé y apliqué.** En `llamar_ollama`, "local" es una **categoría de
-precio**, no un modelo. El proveedor declara que es gratis; `coste()` no lo adivina por el
-nombre. Así puedo cambiar de modelo local mañana sin tocar la tabla de precios. Lo dejé
-escrito en el docstring, no solo en la cabeza.
+---
 
-**Sobre la autoevaluación.** Saqué 19 de 72. El número global me parece bien calibrado,
-pero la escala no: entre "no sé ni qué significa la frase" y "entiendo el concepto" hay un
-abismo, y casi todo me cayó en el 1 por defecto. La voy a volver a usar en D77 con el
-mismo criterio, que es lo único que la hace comparable, pero no me voy a apoyar en ella
-más de lo que aguanta. El diario y el repo son mejor evidencia.
+## D01 — 18 y 19 de septiembre
 
-**Cosas pequeñas que aprendí por el camino.**
+**Lo que quedó hecho.** `py/semanas/s01/d01_anatomia.py`: exploración del tokenizador, dos
+llamadas crudas con `httpx` —Anthropic y OpenAI, sin ningún SDK— y una función que estima el
+coste antes de gastarlo. Los dos JSON, el de ida y el de vuelta, diseccionados campo por campo.
 
-- Los archivos que empiezan con punto están ocultos por convención. Por eso no veía `.env`
-  en Finder, ni veo la carpeta `.git` donde vive toda la historia del repo.
-- `uv` busca el `pyproject.toml` en la carpeta actual y va **subiendo**, nunca bajando. Por
-  eso `uv add` falló desde la raíz del repo: el proyecto estaba un nivel por debajo.
-- Los corchetes en `pip install 'smolagents[litellm]'` se llaman *extras*: grupos de
-  dependencias opcionales que el paquete declara. Y las comillas son porque `zsh`
-  interpreta los corchetes como comodines.
-- `litellm` es, en grande, lo mismo que escribí a mano en D0.2: una interfaz única sobre
-  muchos proveedores. Haberlo escrito primero hace que la librería no me parezca magia.
-- `smolagents` hace que el agente escriba código Python en vez de JSON para usar sus
-  herramientas. Más natural para el modelo, y una superficie de ataque enorme: eso es D10.
+**El fallo grave: filtré una clave.** Se me cruzaron las variables y la clave de Anthropic
+acabó impresa en el campo `model` del cuerpo del request. La pegué después en un chat. Tuve
+que revocarla y generar otra. El repositorio estaba limpio — `.env` nunca se versionó — así
+que el daño quedó en la terminal y en el chat.
+
+La lección no es "no imprimas las cabeceras". Es que **cualquier `print` puede filtrar un
+secreto si una variable se va donde no debe**. Imprimir el cuerpo era correcto y necesario;
+lo que falló fue el cuerpo, no la decisión de imprimirlo.
+
+**El proxy TLS, tercera aparición.** Esta vez contra `httpx`, que ignora `SSL_CERT_FILE` y
+`REQUESTS_CA_BUNDLE` porque trae su propio paquete de certificados fijado por dentro. Por eso
+`tiktoken` (que usa `requests`) pasó y `httpx` no. Se resolvió con `truststore`, que hace que
+Python use el llavero de macOS para todo.
+
+**Lo que medí.**
+
+| Medición | Resultado |
+|---|---|
+| Impuesto del idioma (misma frase) | 14 tokens en español contra 11 en inglés — **+27 %** |
+| Mayúsculas | `Autorizar` = 2 tokens, `RECLAMACION` = **4** |
+| Identificadores | `2026-08841` = **5 tokens** |
+| Razón car/token | prosa 4,6 · documento con datos estructurados **4,0** |
+| `reasoning_effort: minimal` | coste **−64 %**, y además respondió |
+| Haiku contra gpt-5-nano, misma pregunta | **13× más caro** |
+| Error de mi estimación de coste | 2,54 % sobre el total |
+
+**El hallazgo del día.** Con `max_tokens: 10` la respuesta llegó con código 200, JSON
+perfectamente formado, y el texto `# Agente de IA` — un encabezado de markdown completo. No
+está vacío: pasaría cualquier comprobación de tipo `if texto:`. Y no contiene una sola idea.
+El único sitio del universo donde consta que eso es basura es `stop_reason: "max_tokens"`.
+Es peor que el caso de OpenAI con el contenido vacío, porque el vacío se detecta solo.
+
+**Lo que me llevo.**
+
+- Una llamada a un LLM es un POST de HTTP con un JSON en el cuerpo. Nada más. Los SDK
+  construyen ese JSON y desenvuelven la respuesta en objetos; eso es todo lo que hacen.
+- `max_tokens` limita **solo la salida** y lo pongo yo. La **ventana de contexto** limita
+  entrada más salida y la pone el modelo. Son dos cosas distintas y las confundía.
+- Un corte no es un desbordamiento: la guillotina la pongo yo.
+- Hay dos capas: el objeto de `httpx` (`status_code`, `headers`) y el JSON del cuerpo
+  (`stop_reason`, `usage`). `response.stop_reason` no existe.
+- `content` en Anthropic es una lista de **partes de una respuesta**; `choices` en OpenAI es
+  una lista de **respuestas alternativas**. Los dos se indexan con `[0]` y no son lo mismo.
+- El mismo prompt: 12 tokens para OpenAI, 15 para Anthropic. Por eso estimar Anthropic con
+  `tiktoken` arrastra un error estructural.
+- `count_tokens` de Anthropic cuenta sin cobrar. No usarlo fue un error mío de criterio.
+- Un error agregado pequeño puede esconder dos errores grandes de signo contrario. Mi 2,54 %
+  es la suma de una estimación de entrada con el tokenizador equivocado y una de salida que
+  me inventé.
+
+**Lo que hice mal en el código y corregí.** Reescribí `coste()` con números mágicos en vez de
+llamar a la que ya tenía; puse la llamada real dentro de la función que debía predecir sin
+gastar; y mezclé la URL de Chat Completions con el campo `input`, que es de la Responses API.
+Las tres son la misma clase de error: no mirar lo que ya existe antes de escribir.
+
+**Nota de proceso.** El diario de D0.3 se perdió porque no lo commiteé. La regla 01 dice que
+cada día termina commiteado, y esto es por qué.

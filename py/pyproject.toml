@@ -5,7 +5,10 @@ requires-python = ">=3.12"
 dependencies = [
     "anthropic>=1.4.0",
     "google-genai>=2.22.0",
+    "httpx>=0.28.1",
     "openai>=3.8.0",
     "python-dotenv>=1.2.3",
     "smolagents[litellm]>=1.26.0",
+    "tiktoken>=0.14.0",
+    "truststore>=0.10.4",
 ]

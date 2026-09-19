@@ -83,7 +83,7 @@ Puntúa cada una del 0 al 3, hoy, sin generosidad:
 | 6 | Construir un grafo con estado persistente y reanudación tras caída |0| |
 | 7 | Implementar aprobación humana con edición de estado y auditoría |1| |
 | 8 | Comparar SDKs con criterios y recomendar uno para un contexto dado |1| |
-| 9 | Montar un RAG híbrido y medir recall@k antes de tocar el prompt |2| |
+| 9 | Montar un RAG híbrido y medir recall@k antes de tocar el prompt |0| |
 | 10 | Diseñar memoria de corto y largo plazo con segmentación por usuario |1| |
 | 11 | Reducir el coste de un agente con context engineering sin perder calidad |1| |
 | 12 | Construir un servidor MCP con autenticación y permisos por rol |1| |
@@ -118,6 +118,8 @@ Puntúa cada una del 0 al 3, hoy, sin generosidad:
 
 *Parallelization: Realiza multiples llamadas simultaneas para resolver una tarea, en el caso de que sea para mejorar velocidad y la tarea es bien dividible se puede utilizar para generar un reporte evaluando diferentes partes de un proceso, cada parte la evalua un LLM CALL, la otra opcion es si se quiere que el sistema dividido haga un tipo de "votacion", cuando esto es asi un ejemplo bueno seria la generacion de ideas para mejorar la app, cada CALL al LLM generaria diferentes ideas y estos votarian por las que mejor les parecen.*
 
-*Orchestrator-workers: Sirve para cuando tenemos muchas subtareas pero no sabemos exactamente como se tienen que ejecutar ni cuantas son: No sirve por ejemplo para escribir funcionalidades que tienen tareas en backend , frontend, y testing, en estos casos el orquestador puede identificar  cuantas subtareas son y un plan para resolverlas, luego de esto pasarla a los workers.*
+*Orchestrator-workers: Sirve para cuando tenemos muchas subtareas pero no sabemos exactamente como se tienen que ejecutar ni cuantas son: Nos sirve por ejemplo para escribir funcionalidades que tienen tareas en backend , frontend, y testing, en estos casos el orquestador puede identificar  cuantas subtareas son y un plan para resolverlas, luego de esto pasarla a los workers.*
 
 *Evaluator-optimizer: El nombre lo explica solo, tenemos un LLM que resuelve una tarea y otro que la evalua y no la da por terminada hata que entienda que cumplio con todos los requerimiento, mientras la tarea no sea cumplida se la devuelve al prmiero con anotacion para que la siga puliendo, un ejemplo sencillo de un caso de uso seria para mejora la seguridad de un app en base a ciertas directices.*
+
+*Agentes:* estos nos sirves como he mencionado antes para cuando no sabemos ni cunatas subtareas vamos a manera, ni que se debe hacer exactamente para resolver esas tareas, un ejemplo seria crear un plan para la creacion de un proyecto donde el agente nos puede hacer preguntas para depurar, investigar, utilizar computer use si es necesario.
