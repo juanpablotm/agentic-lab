@@ -42,3 +42,8 @@ trazas/
 .vscode/*
 !.vscode/settings.json
 .idea/
+
+# ---- Trazas de llamadas (D02) ----
+# Salida de ejecucion, no codigo fuente. Crecen sin limite y pueden contener
+# prompts y respuestas completas. Las conclusiones se commitean; los logs no.
+py/trazas/

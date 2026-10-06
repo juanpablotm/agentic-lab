@@ -9,6 +9,7 @@ En la semana 11 esto se convierte en el artículo técnico.
 | D0.2 (7–8 sep) | Capa multiproveedor: una sola función y cuatro backends (Anthropic, OpenAI, Groq, Gemini) devolviendo texto, tokens, latencia y coste por llamada. | `coste()` usaba variables que no existían, así que las cuatro funciones reventaban; y `gpt-5-nano` devolvió texto vacío. | Que los tres modelos que sí respondieron sobre mi propio sector se equivocaron — y el más caro se equivocó con más seguridad. |
 | D0.3 (10–17 sep) | Leí *Building Effective Agents* y las unidades 0 y 1 de Hugging Face, escribí mi línea base, resumí los patrones con ejemplos de seguros y cerré `llamar_ollama`. | Nada de código. Se rompió mi idea de que `uv` busca el proyecto hacia abajo, y tardé en encontrar un `.env` que llevaba media hora delante de mí. | Que ya tenía el bucle del agente en la cabeza sin saber su nombre: observar el resultado, decidir si sigo, y parar por objetivo cumplido o por límite alcanzado. |
 | D01 (18–19 sep) | Llamé a Anthropic y OpenAI con `httpx`, sin SDK, y diseccioné el JSON de ida y el de vuelta. Medí el impuesto del idioma, provoqué cortes a propósito y estimé costes antes de pagarlos. | Filtré mi clave de Anthropic imprimiendo el cuerpo con las variables cruzadas. Y el proxy TLS otra vez, ahora contra `httpx`, que ignora `SSL_CERT_FILE`. | Que una respuesta puede llegar con código 200, JSON válido y texto dentro, y aun así ser basura. El único testigo es `stop_reason`. |
+| D02 (5–6 oct) | Escribí `core/llm.py`: una entrada única para los cinco proveedores, con timeout, reintentos con backoff y jitter, y traza en JSONL. Más dos ejercicios: medir la variabilidad y probar el manejo de errores sin tocar la red. | El experimento: `temperature` ya no existe en los modelos de razonamiento. Y un `esponse` por `response` que me habría dado un resultado falso y creíble. | Que ya no hay ninguna perilla para apagar la variabilidad. Deja de ser un parámetro que bajas y pasa a ser una propiedad con la que convives. |
 
 ---
 
@@ -233,3 +234,94 @@ Las tres son la misma clase de error: no mirar lo que ya existe antes de escribi
 
 **Nota de proceso.** El diario de D0.3 se perdió porque no lo commiteé. La regla 01 dice que
 cada día termina commiteado, y esto es por qué.
+
+
+---
+
+## D02 — 5 y 6 de octubre
+
+**Lo que quedó hecho.** `py/core/llm.py`, el módulo del que va a colgar todo el resto del
+plan: una sola función `llamar()` para los cinco proveedores, con timeout explícito,
+reintentos solo de fallos transitorios, backoff exponencial con jitter y una traza JSONL por
+intento. Más `semanas/s01/d02_practica.py` (medir la variabilidad) y `d02_reintentos.py`
+(probar el manejo de errores contra funciones falsas).
+
+**El error que miente.** En mi primer intento del ejercicio 1 escribí `esponse = llamar(...)`
+y en la línea siguiente leí `response`, que seguía viva del bucle anterior. Python no se
+queja porque el nombre existe. El programa corre entero y la lista de resultados acaba con
+diez copias de la última respuesta del bucle anterior.
+
+Mi conclusión habría sido *"a temperatura 0 salen diez respuestas iguales"*: coherente con
+lo que esperaba, perfectamente falsa, y con veinte llamadas pagadas de por medio.
+
+El día iba justamente de por qué no se puede confiar en una sola corrida, y mi propio código
+de medición iba a producir una mentira con cara de dato. Esto es lo que la semana 8 intenta
+evitar y lo generé yo solo en el primer intento.
+
+**El ejercicio mejoró al romperse.** El plan pedía comparar `temperature: 0` contra
+`temperature: 1`. El modelo rechazó el parámetro: los de razonamiento ya no lo admiten, y en
+Anthropic `temperature` está deprecado y `top_k` se rechaza con un 400.
+
+Eso cambia la pregunta, y a mejor. El ejercicio original asumía que existe una perilla para
+apagar la variabilidad. **Ya no existe.** La industria pasó de controlar cómo se sortea el
+siguiente token a controlar cuánto piensa el modelo antes de responder — `reasoning_effort`,
+`effort`. Son dos niveles de abstracción distintos.
+
+Consecuencia incómoda: la variabilidad deja de ser algo que puedes bajar y pasa a ser una
+propiedad del sistema. Toda la estrategia de calidad de la semana 8 deja de ser una
+recomendación y pasa a ser la única opción que queda.
+
+**Medición.** Con `reasoning_effort: high` y `max_tokens: 400`, las diez llamadas volvieron
+vacías: se gastó el presupuesto entero razonando antes de escribir una palabra. En una tarea
+de clasificar en UNA palabra. Mismo modo de fallo de D01, otro parámetro.
+
+**Las cuatro decisiones de contrato de `core/llm.py`.**
+
+1. Al agotarse los reintentos devuelvo una `Respuesta` con `ok=False` en vez de lanzar.
+   Riesgo asumido: un fallo devuelto se puede ignorar sin querer, porque `r.texto` vale `""`
+   y no protesta. Por eso `ok` es el primer campo que hay que mirar siempre.
+   Excepción: un fallo que NO es transitorio (400, 401) sí sube como excepción — ese error
+   es mío, no del servicio, y envolverlo haría que un bug de configuración pareciera un
+   problema de red.
+2. Registro todo en el JSONL, incluidos los intentos fallidos. Dos tipos de línea:
+   `intento_fallido` y `llamada`.
+3. Una respuesta truncada es un fallo. Y no se reintenta: la llamada no falló, así que
+   repetirla con la misma entrada y el mismo límite da el mismo corte.
+4. Las trazas viven en `py/trazas/` y no se versionan. Pueden contener prompts y respuestas
+   completas, y el repo es público. Lo que se commitea son las conclusiones — las tablas,
+   los README, los números — no los logs crudos. La materia prima es privada; el análisis
+   es el producto.
+
+**Lo que me llevo.**
+
+- Hay dos capas de error y no se tratan igual. **Transporte**: la petición no llegó o no
+  volvió; llega como excepción; se reintenta. **Semántica**: llegó y lo que trae no sirve;
+  llega con un 200; no se reintenta, se detecta mirando `stop_reason`.
+  En D09 aparece una tercera: el error de una herramienta, que no se lanza ni se reintenta
+  sino que se le devuelve al modelo como observación.
+- Por qué los reintentos pesan tanto en agentes: con diez llamadas por tarea al 99 % cada
+  una, una de cada diez tareas falla. Y si revienta en el paso siete, pierdes también los
+  seis anteriores.
+- Reintentar solo lo transitorio. Un `except Exception` reintenta cuatro veces un bug mío.
+- **Inyección de dependencias**: `dormir` se recibe como parámetro en vez de llamar a
+  `time.sleep` directamente. Compra dos cosas concretas: las pruebas corren en cero segundos
+  y puedo *comprobar* cuánto habría esperado en vez de creérmelo. Misma técnica, con un LLM
+  falso, es el proyecto 2.
+- Probar el manejo de errores contra funciones falsas: instantáneo, gratis, determinista, y
+  puedo forzar exactamente el fallo que quiero ver.
+- El último intento no duerme antes de rendirse. Una línea que casi todo el mundo deja mal.
+- En Python la variable del `except` se borra al salir del bloque. Por eso hay que copiarla
+  a otra si la vas a usar después.
+- `es_transitorio()` pregunta **qué pasó** (código HTTP, tipo de fallo) y no **de qué clase
+  eres**, porque cada SDK tiene sus propias excepciones y aquí hay cinco proveedores.
+
+**Del cuestionario, lo que fallé.** Dos respuestas flojas, y las dos del mismo tipo: las que
+piden *por qué está diseñado así* o *qué harías*, no *cómo funciona*.
+
+- Por qué el modelo no coge siempre el token más probable: respondí algo circular. La razón
+  real es de diseño — el muestreo es lo que evita que el texto salga repetitivo y plano.
+- Cómo pruebo que el sistema funciona sin comparar cadenas exactas: dije "mediante
+  observación", que es exactamente lo que la regla 05 prohíbe. La respuesta son
+  **propiedades** (¿valida el esquema? ¿está la cifra? ¿usó la herramienta correcta?) y
+  **agregados sobre muchos casos**. Y lo tenía delante: el `len(set(textos))` que escribí hoy
+  es un agregado, no una observación.
